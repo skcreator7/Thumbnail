@@ -96,13 +96,12 @@ async def send_thumbnail(bot, update):
         )
         await update.reply_photo(
             photo=thumbnail,
-            reply_markup=photo_buttons,
             quote=True
         )
         await message.delete()
     except Exception as error:
         await message.edit_text(
-            text=error,
+            text="`Fuck you 🖕🏻`",
             disable_web_page_preview=True,
             reply_markup=InlineKeyboardMarkup([BUTTON])
         )
