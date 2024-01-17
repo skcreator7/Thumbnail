@@ -27,11 +27,7 @@ I am a simple youtube thumbnail downloader telegram bot.
   - maxres - Maximum Resolution
 """
 
-BUTTON = [InlineKeyboardButton("Feedback", url='https://telegram.me/FayasNoushad')]
-
-photo_buttons = InlineKeyboardMarkup(
-    [[InlineKeyboardButton('Other Qualities', callback_data='qualities')], BUTTON]
-)
+BUTTON = [InlineKeyboardButton("Movies Search Group", url='https://telegram.me/Skcreator7')]
 
 @Bot.on_callback_query()
 async def cb_data(_, message):
@@ -46,11 +42,6 @@ async def cb_data(_, message):
                     callback_data=quality
                 )
             )
-        await message.edit_message_reply_markup(
-            InlineKeyboardMarkup(
-                [[buttons[0], buttons[1]], [buttons[2], buttons[3]], BUTTON]
-            )
-        )
     if data == "back":
         await message.edit_message_reply_markup(photo_buttons)
     if data in ytthumb.qualities():
@@ -71,7 +62,6 @@ async def start(_, message):
     await message.reply_text(
         text=START_TEXT.format(message.from_user.mention),
         disable_web_page_preview=True,
-        reply_markup=InlineKeyboardMarkup([BUTTON]),
         quote=True
     )
 
@@ -101,7 +91,7 @@ async def send_thumbnail(bot, update):
         await message.delete()
     except Exception as error:
         await message.edit_text(
-            text="`Fuck you 🖕🏻`",
+            text="Please join movies search Group and get movies",
             disable_web_page_preview=True,
             reply_markup=InlineKeyboardMarkup([BUTTON])
         )
