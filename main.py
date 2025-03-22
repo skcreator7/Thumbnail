@@ -1,106 +1,76 @@
-# Author: Fayas (https://github.com/FayasNoushad) (@FayasNoushad)
-
 import os
+import asyncio
 import ytthumb
 from dotenv import load_dotenv
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from pyrogram.errors import FloodWait
-import asyncio
 
+# Load environment variables
 load_dotenv()
 
-Bot = Client(
+# Initialize bot client
+app = Client(
     "YouTube-Thumbnail-Downloader",
-    bot_token=os.environ.get("BOT_TOKEN"),
-    api_id=int(os.environ.get("API_ID")),
-    api_hash=os.environ.get("API_HASH")
+    bot_token=os.getenv("BOT_TOKEN"),
+    api_id=int(os.getenv("API_ID")),
+    api_hash=os.getenv("API_HASH")
 )
 
+# Start message
 START_TEXT = """Hello {},
-I am a simple YouTube thumbnail downloader Telegram bot.
+I am a YouTube thumbnail downloader bot.
 
 - Send a YouTube video link or video ID.
 - I will send the thumbnail.
-- You can also send a YouTube video link or video ID with quality. (like: `rokGy0huYEA | sd`)
-  - sd - Standard Quality
-  - mq - Medium Quality
-  - hq - High Quality
-  - maxres - Maximum Resolution
+- You can also specify quality (e.g., `rokGy0huYEA | maxres`).
+
+Qualities:
+  - sd → Standard Quality
+  - mq → Medium Quality
+  - hq → High Quality
+  - maxres → Maximum Resolution
 """
 
-START_BUTTONS = InlineKeyboardMarkup(
-    [
-        [InlineKeyboardButton("🎬 Wʜᴀᴛꜱᴀᴘᴘ Mᴏᴠɪᴇꜱ Cʜᴀɴɴᴇʟ", url='https://whatsapp.com/channel/0029VaCUrJwEAKW5rDJXz23h')],
-        [InlineKeyboardButton("🎬 Wʜᴀᴛꜱᴀᴘᴘ Mᴏᴠɪᴇꜱ Cʜᴀɴɴᴇʟ 2", url='https://whatsapp.com/channel/0029Va69Ts2C6ZvmEWsHNo3c')],
-        [InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Sᴇᴀʀᴄʜ Gʀᴏᴜᴘ", url='https://t.me/+_AWkWy0499dlZjQ1')],
-        [InlineKeyboardButton("🔎 Mᴏᴠɪᴇꜱ Sᴇᴀʀᴄʜ Gʀᴏᴜᴘ 2", url='https://t.me/+cxiYHGE4jW9jOTY9')],
-        [InlineKeyboardButton("📢 Uᴘᴅᴀᴛᴇ Cʜᴀɴɴᴇʟ", url='https://t.me/SkFilmbox')],
-        [InlineKeyboardButton("☎️ Aᴅᴍɪɴ", url='https://t.me/Skadminrobot')]
-    ]
-)
+START_BUTTONS = InlineKeyboardMarkup([
+    [InlineKeyboardButton("📢 Updates", url="https://t.me/SkFilmbox")],
+    [InlineKeyboardButton("☎️ Admin", url="https://t.me/Skadminrobot")]
+])
 
-@Bot.on_callback_query()
-async def cb_data(_, callback_query):
-    data = callback_query.data.lower()
-    if data in ytthumb.qualities():
-        thumbnail = ytthumb.thumbnail(
-            video=callback_query.message.reply_to_message.text,
-            quality=data
-        )
-        await callback_query.answer('Updating')
-        await callback_query.edit_message_media(
-            media=InputMediaPhoto(media=thumbnail)
-        )
-        await callback_query.answer('Updated Successfully')
-
-@Bot.on_message(filters.private & filters.command(["start", "help"]))
+# Command: /start
+@app.on_message(filters.private & filters.command(["start", "help"]))
 async def start(_, message):
     await message.reply_text(
         text=START_TEXT.format(message.from_user.mention),
         disable_web_page_preview=True,
-        reply_markup=START_BUTTONS,
-        quote=True
+        reply_markup=START_BUTTONS
     )
 
-@Bot.on_message(filters.private & filters.text)
-async def send_thumbnail(bot, update):
-    message = await update.reply_text(
-        text="`Analysing...`",
-        disable_web_page_preview=True,
-        quote=True
-    )
+# Handle text messages (YouTube links)
+@app.on_message(filters.private & filters.text)
+async def send_thumbnail(_, message):
+    processing = await message.reply_text("`Fetching thumbnail...`")
+
     try:
-        if " | " in update.text:
-            video = update.text.split(" | ")[0]
-            quality = update.text.split(" | ")[1]
+        if " | " in message.text:
+            video, quality = message.text.split(" | ")
         else:
-            video = update.text
-            quality = "sd"
-        thumbnail = ytthumb.thumbnail(
-            video=video,
-            quality=quality
-        )
-        await update.reply_photo(
-            photo=thumbnail,
-            quote=True
-        )
-        await message.delete()
-    except Exception as error:
-        await message.edit_text(
-            text="Please join the WhatsApp & Movies Search Group and get movies",
+            video, quality = message.text, "sd"
+
+        thumbnail = ytthumb.thumbnail(video=video, quality=quality)
+
+        await message.reply_photo(photo=thumbnail)
+        await processing.delete()
+    except Exception:
+        await processing.edit_text(
+            text="Error fetching thumbnail! Please try again.",
             disable_web_page_preview=True,
             reply_markup=START_BUTTONS
         )
 
 async def main():
-    while True:
-        try:
-            await Bot.start()
-            await Bot.idle()
-        except FloodWait as e:
-            print(f"FloodWait: Sleeping for {e.x} seconds")
-            await asyncio.sleep(e.x)
+    async with app:
+        await app.run()
 
 if __name__ == "__main__":
     asyncio.run(main())
