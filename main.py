@@ -5,6 +5,8 @@ import ytthumb
 from dotenv import load_dotenv
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import threading
 
 load_dotenv()
 
@@ -37,6 +39,21 @@ START_BUTTONS = InlineKeyboardMarkup(
         [InlineKeyboardButton("☎️ Aᴅᴍɪɴ", url='https://t.me/Skadminrobot')]
     ]
 )
+
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/plain')
+        self.end_headers()
+        self.wfile.write(b'OK')
+
+def start_health_check_server():
+    server = HTTPServer(('0.0.0.0', 8080), HealthCheckHandler)
+    server.serve_forever()
+
+health_check_thread = threading.Thread(target=start_health_check_server)
+health_check_thread.daemon = True
+health_check_thread.start()
 
 @Bot.on_callback_query()
 async def cb_data(_, callback_query):
