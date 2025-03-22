@@ -1,0 +1,32 @@
+name: thumbnail-bot
+
+services:
+  - name: main-bot
+    runtime: python
+    instance_type: nano
+    ports:
+      - http: 80
+    env:
+      BOT_TOKEN: ${env.BOT_TOKEN}
+      API_ID: ${env.API_ID}
+      API_HASH: ${env.API_HASH}
+    build:
+      commands:
+        - pip install -r requirements.txt
+    run:
+      command: python3 main.py
+
+  - name: group-manager
+    runtime: python
+    instance_type: nano
+    ports:
+      - http: 80
+    env:
+      BOT_TOKEN: ${env.BOT_TOKEN}
+      API_ID: ${env.API_ID}
+      API_HASH: ${env.API_HASH}
+    build:
+      commands:
+        - pip install -r requirements.txt
+    run:
+      command: python3 group_manager.py
