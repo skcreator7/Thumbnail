@@ -5,7 +5,6 @@ import threading
 from dotenv import load_dotenv
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
-from pyrogram.errors import FloodWait
 import ytthumb
 from fastapi import FastAPI
 import uvicorn
