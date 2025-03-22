@@ -27,7 +27,7 @@ I am a simple youtube thumbnail downloader telegram bot.
   - maxres - Maximum Resolution
 """
 
-BUTTON = [InlineKeyboardButton("Movies Search Group", url='https://telegram.me/Skcreator7')]
+BUTTON = [InlineKeyboardButton("Movies Search Group", url='https://t.me/+_AWkWy0499dlZjQ1')]
 
 @Bot.on_callback_query()
 async def cb_data(_, message):
