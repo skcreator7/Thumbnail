@@ -5,16 +5,16 @@ import ytthumb
 from dotenv import load_dotenv
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import threading
+from pyrogram.errors import FloodWait
+import asyncio
 
 load_dotenv()
 
 Bot = Client(
     "YouTube-Thumbnail-Downloader",
-    bot_token = os.environ.get("BOT_TOKEN"),
-    api_id = int(os.environ.get("API_ID")),
-    api_hash = os.environ.get("API_HASH")
+    bot_token=os.environ.get("BOT_TOKEN"),
+    api_id=int(os.environ.get("API_ID")),
+    api_hash=os.environ.get("API_HASH")
 )
 
 START_TEXT = """Hello {},
@@ -39,21 +39,6 @@ START_BUTTONS = InlineKeyboardMarkup(
         [InlineKeyboardButton("☎️ Aᴅᴍɪɴ", url='https://t.me/Skadminrobot')]
     ]
 )
-
-class HealthCheckHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/plain')
-        self.end_headers()
-        self.wfile.write(b'OK')
-
-def start_health_check_server():
-    server = HTTPServer(('0.0.0.0', 8080), HealthCheckHandler)
-    server.serve_forever()
-
-health_check_thread = threading.Thread(target=start_health_check_server)
-health_check_thread.daemon = True
-health_check_thread.start()
 
 @Bot.on_callback_query()
 async def cb_data(_, callback_query):
@@ -108,4 +93,14 @@ async def send_thumbnail(bot, update):
             reply_markup=START_BUTTONS
         )
 
-Bot.run()
+async def main():
+    while True:
+        try:
+            await Bot.start()
+            await Bot.idle()
+        except FloodWait as e:
+            print(f"FloodWait: Sleeping for {e.x} seconds")
+            await asyncio.sleep(e.x)
+
+if __name__ == "__main__":
+    asyncio.run(main())
