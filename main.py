@@ -1,14 +1,19 @@
 import os
-import ytthumb
+import re
+import asyncio
+import threading
 from dotenv import load_dotenv
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from pyrogram.errors import FloodWait
-import asyncio
+import ytthumb
+from fastapi import FastAPI
+import uvicorn
 
 # Load environment variables
 load_dotenv()
 
+# Initialize bot
 app = Client(
     "YouTube-Thumbnail-Downloader",
     bot_token=os.environ.get("BOT_TOKEN"),
@@ -16,39 +21,42 @@ app = Client(
     api_hash=os.environ.get("API_HASH")
 )
 
-START_TEXT = """Hello {},
-I am a simple YouTube thumbnail downloader Telegram bot.
+# FastAPI for Koyeb health check
+web_app = FastAPI()
 
-- Send a YouTube video link or video ID.
-- I will send the thumbnail.
-- You can also send a YouTube video link or video ID with quality. (like: `rokGy0huYEA | sd`)
-  - sd - Standard Quality
-  - mq - Medium Quality
-  - hq - High Quality
-  - maxres - Maximum Resolution
+@web_app.get("/")
+def home():
+    return {"status": "running"}
+
+# Function to run the web server in a separate thread
+def run_web_server():
+    uvicorn.run(web_app, host="0.0.0.0", port=8000)
+
+# Function to delete a message after 5 minutes
+async def delete_message(message: Message):
+    await asyncio.sleep(300)  # 5 minutes
+    await message.delete()
+
+# START Message & Buttons
+START_TEXT = """Hello {},
+I am a simple YouTube thumbnail downloader and group manager bot.
+
+- **Send a YouTube video link or ID**, and I'll send the thumbnail.
+- **Send a YouTube video link with quality** (e.g., `rokGy0huYEA | sd`):
+  - `sd` - Standard Quality
+  - `mq` - Medium Quality
+  - `hq` - High Quality
+  - `maxres` - Maximum Resolution
 """
 
-START_BUTTONS = InlineKeyboardMarkup([
-    [InlineKeyboardButton("🎬 WhatsApp Movies Channel", url='https://whatsapp.com/channel/0029VaCUrJwEAKW5rDJXz23h')],
-    [InlineKeyboardButton("🎬 WhatsApp Movies Channel 2", url='https://whatsapp.com/channel/0029Va69Ts2C6ZvmEWsHNo3c')],
-    [InlineKeyboardButton("🔎 Movies Search Group", url='https://t.me/+_AWkWy0499dlZjQ1')],
-    [InlineKeyboardButton("🔎 Movies Search Group 2", url='https://t.me/+cxiYHGE4jW9jOTY9')],
-    [InlineKeyboardButton("📢 Update Channel", url='https://t.me/SkFilmbox')],
-    [InlineKeyboardButton("☎️ Admin", url='https://t.me/Skadminrobot')]
-])
+START_BUTTONS = InlineKeyboardMarkup(
+    [
+        [InlineKeyboardButton("📢 Update Channel", url='https://t.me/SkFilmbox')],
+        [InlineKeyboardButton("☎️ Admin", url='https://t.me/Skadminrobot')]
+    ]
+)
 
-@app.on_callback_query()
-async def cb_data(_, callback_query):
-    data = callback_query.data.lower()
-    if data in ytthumb.qualities():
-        thumbnail = ytthumb.thumbnail(
-            video=callback_query.message.reply_to_message.text,
-            quality=data
-        )
-        await callback_query.answer('Updating')
-        await callback_query.edit_message_media(media=InputMediaPhoto(media=thumbnail))
-        await callback_query.answer('Updated Successfully')
-
+# Handler for "/start" and "/help" commands
 @app.on_message(filters.private & filters.command(["start", "help"]))
 async def start(_, message):
     await message.reply_text(
@@ -58,30 +66,46 @@ async def start(_, message):
         quote=True
     )
 
+# YouTube Thumbnail Downloader
 @app.on_message(filters.private & filters.text)
-async def send_thumbnail(bot, update):
-    message = await update.reply_text(
-        text="`Analysing...`",
-        disable_web_page_preview=True,
-        quote=True
-    )
+async def send_thumbnail(_, message):
+    msg = await message.reply_text("`Analyzing...`", quote=True)
     try:
-        if " | " in update.text:
-            video, quality = update.text.split(" | ")
+        if " | " in message.text:
+            video, quality = message.text.split(" | ")
         else:
-            video, quality = update.text, "sd"
-        
+            video, quality = message.text, "sd"
+
         thumbnail = ytthumb.thumbnail(video=video, quality=quality)
-
-        await update.reply_photo(photo=thumbnail, quote=True)
-        await message.delete()
-
+        await message.reply_photo(photo=thumbnail, quote=True)
+        await msg.delete()
     except Exception:
-        await message.edit_text(
-            text="Please join the WhatsApp & Movies Search Group and get movies",
-            disable_web_page_preview=True,
-            reply_markup=START_BUTTONS
-        )
+        await msg.edit_text("❌ Invalid video ID or URL.")
 
-# ✅ Use `app.run()` instead of `asyncio.run(main())`
-app.run()
+# Group Message Moderation (Delete links, usernames & non-admin messages)
+@app.on_message(filters.group)
+async def handle_group_message(client: Client, message: Message):
+    # Ignore messages from admins
+    user = await client.get_chat_member(message.chat.id, message.from_user.id)
+    if user.status in ["administrator", "creator"]:
+        return  
+
+    # Check if message contains a link or username
+    if re.search(r"(https?:\/\/|@[A-Za-z0-9_]+)", message.text):
+        await message.reply_text("❌ Sending links or usernames is not allowed!")
+        return
+
+    # Schedule message deletion after 5 minutes
+    asyncio.create_task(delete_message(message))
+
+# Main function
+async def main():
+    # Start the web server in a separate thread
+    threading.Thread(target=run_web_server, daemon=True).start()
+
+    async with app:
+        await app.run()
+
+# Run the bot
+if __name__ == "__main__":
+    asyncio.run(main())
