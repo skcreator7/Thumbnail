@@ -45,10 +45,12 @@ async def auto_delete_messages(client: Client, message: Message):
         return  # Don't delete admin messages
 
     await asyncio.sleep(300)  # Wait for 5 minutes
+
     try:
+        # Check if the message still exists
         await message.delete()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error deleting message: {e}")
 
 ### ✅ Bot Startup
 async def main():
