@@ -1,11 +1,10 @@
 import asyncio
-from pyrogram import Client, filters
+from pyrogram import Client, filters, idle
 from pyrogram.types import Message
 from dotenv import load_dotenv
 import os
 from ytthumb import download_thumbnail  # Import the YouTube thumbnail downloader
 from pyrogram.errors import BadMsgNotification
-from pyrogram.client import idle
 
 # Load environment variables
 load_dotenv()
@@ -62,7 +61,7 @@ async def start_bot():
             print("🚀 Bot is starting...")
             await app.start()
             print("✅ Bot is running!")
-            await idle()
+            await idle()  # Keeps the bot running
             break  # Exit the loop if bot starts successfully
         except BadMsgNotification as e:
             print(f"Time synchronization error during startup: {e}")
