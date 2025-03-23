@@ -12,6 +12,9 @@ import uvicorn
 # Load environment variables
 load_dotenv()
 
+# Get port from environment variable (important for Koyeb!)
+PORT = int(os.getenv("PORT", 8000))
+
 # Initialize bot
 app = Client(
     "YouTube-Thumbnail-Downloader",
@@ -20,16 +23,16 @@ app = Client(
     api_hash=os.environ.get("API_HASH")
 )
 
-# FastAPI for Koyeb health check
+# FastAPI app for health check
 web_app = FastAPI()
 
 @web_app.get("/")
 def home():
     return {"status": "running"}
 
-# Function to run the web server in a separate thread
+# Start FastAPI in a separate thread
 def run_web_server():
-    uvicorn.run(web_app, host="0.0.0.0", port=8000)
+    uvicorn.run(web_app, host="0.0.0.0", port=PORT)
 
 # START Message & Buttons
 START_TEXT = """Hello {},
@@ -50,7 +53,6 @@ START_BUTTONS = InlineKeyboardMarkup(
     ]
 )
 
-# Handler for "/start" and "/help" commands
 @app.on_message(filters.private & filters.command(["start", "help"]))
 async def start(_, message):
     await message.reply_text(
@@ -60,7 +62,6 @@ async def start(_, message):
         quote=True
     )
 
-# YouTube Thumbnail Downloader
 @app.on_message(filters.private & filters.text)
 async def send_thumbnail(_, message):
     msg = await message.reply_text("`Analyzing...`", quote=True)
@@ -76,28 +77,22 @@ async def send_thumbnail(_, message):
     except Exception:
         await msg.edit_text("❌ Invalid video ID or URL.")
 
-# Group Message Moderation (Delete links & usernames, Ignore Admin Messages)
 @app.on_message(filters.group)
 async def handle_group_message(client: Client, message: Message):
-    # Ignore messages from admins
     user = await client.get_chat_member(message.chat.id, message.from_user.id)
     if user.status in ["administrator", "creator"]:
         return  
 
-    # Check if message contains a link or username
     if re.search(r"(https?:\/\/|@[A-Za-z0-9_]+)", message.text):
         await message.reply_text("❌ Sending links or usernames is not allowed!")
         return
 
-# Properly Starting Pyrogram & FastAPI
 async def start_bot():
-    # Start the web server in a separate thread
     threading.Thread(target=run_web_server, daemon=True).start()
-
     print("🚀 Bot is starting...")
     await app.start()
     print("✅ Bot is running!")
-    await asyncio.Event().wait()  # Keeps the bot running
+    await asyncio.Event().wait()
 
 if __name__ == "__main__":
     try:
