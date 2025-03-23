@@ -4,7 +4,7 @@ import asyncio
 import threading
 from dotenv import load_dotenv
 from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 import ytthumb
 from fastapi import FastAPI
 import uvicorn
@@ -30,11 +30,6 @@ def home():
 # Function to run the web server in a separate thread
 def run_web_server():
     uvicorn.run(web_app, host="0.0.0.0", port=8000)
-
-# Function to delete a message after 5 minutes
-async def delete_message(message: Message):
-    await asyncio.sleep(300)  # 5 minutes
-    await message.delete()
 
 # START Message & Buttons
 START_TEXT = """Hello {},
@@ -81,7 +76,7 @@ async def send_thumbnail(_, message):
     except Exception:
         await msg.edit_text("❌ Invalid video ID or URL.")
 
-# Group Message Moderation (Delete links, usernames & non-admin messages)
+# Group Message Moderation (Delete links & usernames, Ignore Admin Messages)
 @app.on_message(filters.group)
 async def handle_group_message(client: Client, message: Message):
     # Ignore messages from admins
@@ -94,17 +89,19 @@ async def handle_group_message(client: Client, message: Message):
         await message.reply_text("❌ Sending links or usernames is not allowed!")
         return
 
-    # Schedule message deletion after 5 minutes
-    asyncio.create_task(delete_message(message))
-
-# Main function
-async def main():
+# Properly Starting Pyrogram & FastAPI
+async def start_bot():
     # Start the web server in a separate thread
     threading.Thread(target=run_web_server, daemon=True).start()
 
-    async with app:
-        await app.run()
+    print("🚀 Bot is starting...")
+    await app.start()
+    print("✅ Bot is running!")
+    await asyncio.Event().wait()  # Keeps the bot running
 
-# Run the bot
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(start_bot())
+    except RuntimeError:
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(start_bot())
