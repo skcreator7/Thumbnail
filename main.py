@@ -35,21 +35,17 @@ async def youtube_thumbnail(client: Client, message: Message):
     else:
         await message.reply_text("❌ Unable to fetch the thumbnail. Please check the YouTube video URL.")
 
-# ✅ Fix: Sync Time Using Python (Instead of ntpdate)
-async def sync_time():
+# ✅ Fix: Force the system time to UTC, bypassing time sync errors
+def force_sync_time():
     try:
-        # Get current time from an online server
-        import requests
-        response = requests.get("http://worldtimeapi.org/api/timezone/Etc/UTC")
-        current_time = response.json()["unixtime"]
+        print("✅ Skipping time sync and proceeding with UTC time...")
         os.environ["TZ"] = "UTC"
         time.tzset()
-        print(f"✅ Time synchronized: {datetime.utcfromtimestamp(current_time)} UTC")
     except Exception as e:
-        print(f"⚠️ Time sync failed: {e}")
+        print(f"⚠️ Error while setting time: {e}")
 
 async def start_bot():
-    await sync_time()  # First, sync time before starting the bot
+    force_sync_time()  # Skip external sync and proceed
     retries = 5  # Number of retries
     delay = 10  # Wait time between retries
 
