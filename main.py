@@ -4,6 +4,7 @@ from pyrogram.types import Message
 from dotenv import load_dotenv
 import os
 from ytthumb import download_thumbnail  # Import the YouTube thumbnail downloader
+import time
 
 # Load environment variables
 load_dotenv()
@@ -45,19 +46,35 @@ async def auto_delete_messages(client: Client, message: Message):
         return  # Don't delete admin messages
 
     await asyncio.sleep(300)  # Wait for 5 minutes
-
     try:
-        # Check if the message still exists
         await message.delete()
-    except Exception as e:
-        print(f"Error deleting message: {e}")
+    except Exception:
+        pass
 
-### ✅ Bot Startup
+### ✅ Retry Logic for Bot Startup
+async def start_bot():
+    retries = 5  # Number of retries before giving up
+    delay = 5  # Seconds to wait between retries
+    
+    for attempt in range(retries):
+        try:
+            print("🚀 Bot is starting...")
+            await app.start()
+            print("✅ Bot is running!")
+            await idle()
+            break  # Exit the loop if bot starts successfully
+        except Exception as e:
+            print(f"Error during startup: {e}")
+            if attempt < retries - 1:
+                print(f"Retrying... Attempt {attempt + 1}/{retries}")
+                await asyncio.sleep(delay)
+            else:
+                print("Failed to start the bot after multiple attempts.")
+
+# Bot Startup
 async def main():
     print("🚀 Bot is starting...")
-    await app.start()
-    print("✅ Bot is running!")
-    await idle()
+    await start_bot()  # Start bot with retry logic
 
 if __name__ == "__main__":
     asyncio.run(main())
