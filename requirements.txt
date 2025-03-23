@@ -1,6 +1,7 @@
-pyrogram
-tgcrypto
-ytthumb
-python-dotenv
-fastapi 
-uvicorn
+pyrogram==2.0.0
+tgcrypto==1.2.0
+ytthumb==1.0.0
+python-dotenv==0.21.0
+requests==2.28.2
+fastapi==0.85.0
+uvicorn==0.18.2
