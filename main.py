@@ -1,4 +1,5 @@
 import asyncio
+import time
 from pyrogram import Client, filters, idle
 from pyrogram.types import Message
 from dotenv import load_dotenv
@@ -33,14 +34,24 @@ async def youtube_thumbnail(client: Client, message: Message):
     else:
         await message.reply_text("❌ Unable to fetch the thumbnail. Please check the YouTube video URL.")
 
+# ✅ Fix: Sync Time Before Starting Bot
+async def sync_time():
+    print("⏳ Syncing system time...")
+    os.system("ntpdate -u time.google.com")  # Sync server time
+    time.sleep(3)  # Wait for time sync to complete
+    print("✅ Time synchronized successfully!")
+
 async def start_bot():
     try:
+        await sync_time()  # First, sync time
         print("🚀 Bot is starting...")
         await app.start()
         print("✅ Bot is running!")
         await idle()  # Keeps the bot running
+    except BadMsgNotification as e:
+        print(f"❌ Time sync error: {e}")
     except Exception as e:
         print(f"❌ Bot startup failed: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(start_bot())  # ✅ Corrected Code
+    asyncio.run(start_bot())
