@@ -1,33 +1,26 @@
 import asyncio
-import os
-from fastapi import FastAPI
-from pyrogram import Client, filters
+from pyrogram import Client, filters, idle
 from pyrogram.types import Message
 from dotenv import load_dotenv
-from ytthumb import download_thumbnail  # YouTube Thumbnail Downloader
+import os
+from ytthumb import download_thumbnail
+from pyrogram.errors import BadMsgNotification
 
 # Load environment variables
 load_dotenv()
 
-API_ID = int(os.getenv("API_ID"))
+API_ID = os.getenv("API_ID")
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-# Initialize FastAPI App
-app = FastAPI()
-
 # Initialize Pyrogram Client
-bot = Client("GroupBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+app = Client("GroupBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-@app.get("/")
-def home():
-    return {"message": "🚀 Telegram Bot is Running with FastAPI!"}
-
-@bot.on_message(filters.private & filters.command("start"))
+@app.on_message(filters.private & filters.command("start"))
 async def start(client: Client, message: Message):
     await message.reply_text("🤖 Hello! I'm your group management bot. I can also download YouTube thumbnails!")
 
-@bot.on_message(filters.command("thumb"))
+@app.on_message(filters.command("thumb"))
 async def youtube_thumbnail(client: Client, message: Message):
     if len(message.command) < 2:
         await message.reply_text("❌ Please provide a valid YouTube video URL.")
@@ -35,16 +28,19 @@ async def youtube_thumbnail(client: Client, message: Message):
 
     video_url = message.command[1]
     file_name = download_thumbnail(video_url)
-    
     if file_name:
         await message.reply_photo(photo=file_name)
     else:
         await message.reply_text("❌ Unable to fetch the thumbnail. Please check the YouTube video URL.")
 
-# ✅ Start Bot in Background
 async def start_bot():
-    print("🚀 Bot is starting...")
-    await bot.start()
-    print("✅ Bot is running!")
+    try:
+        print("🚀 Bot is starting...")
+        await app.start()
+        print("✅ Bot is running!")
+        await idle()  # Keeps the bot running
+    except Exception as e:
+        print(f"❌ Bot startup failed: {e}")
 
-asyncio.create_task(start_bot())  # Run Pyrogram bot in background
+if __name__ == "__main__":
+    asyncio.run(start_bot())  # ✅ Corrected Code
