@@ -1,9 +1,10 @@
 import asyncio
 import time
+import os
+from datetime import datetime
 from pyrogram import Client, filters, idle
 from pyrogram.types import Message
 from dotenv import load_dotenv
-import os
 from ytthumb import download_thumbnail
 from pyrogram.errors import BadMsgNotification
 
@@ -34,24 +35,47 @@ async def youtube_thumbnail(client: Client, message: Message):
     else:
         await message.reply_text("❌ Unable to fetch the thumbnail. Please check the YouTube video URL.")
 
-# ✅ Fix: Sync Time Before Starting Bot
+# ✅ Fix: Sync Time Using Python (Instead of ntpdate)
 async def sync_time():
-    print("⏳ Syncing system time...")
-    os.system("ntpdate -u time.google.com")  # Sync server time
-    time.sleep(3)  # Wait for time sync to complete
-    print("✅ Time synchronized successfully!")
+    try:
+        # Get current time from an online server
+        import requests
+        response = requests.get("http://worldtimeapi.org/api/timezone/Etc/UTC")
+        current_time = response.json()["unixtime"]
+        os.environ["TZ"] = "UTC"
+        time.tzset()
+        print(f"✅ Time synchronized: {datetime.utcfromtimestamp(current_time)} UTC")
+    except Exception as e:
+        print(f"⚠️ Time sync failed: {e}")
 
 async def start_bot():
-    try:
-        await sync_time()  # First, sync time
-        print("🚀 Bot is starting...")
-        await app.start()
-        print("✅ Bot is running!")
-        await idle()  # Keeps the bot running
-    except BadMsgNotification as e:
-        print(f"❌ Time sync error: {e}")
-    except Exception as e:
-        print(f"❌ Bot startup failed: {e}")
+    await sync_time()  # First, sync time before starting the bot
+    retries = 5  # Number of retries
+    delay = 10  # Wait time between retries
+
+    for attempt in range(retries):
+        try:
+            print("🚀 Bot is starting...")
+            await app.start()
+            print("✅ Bot is running!")
+            await idle()
+            break
+        except BadMsgNotification as e:
+            print(f"❌ Time sync error: {e}")
+            if attempt < retries - 1:
+                print(f"🔄 Retrying... Attempt {attempt + 1}/{retries}")
+                await asyncio.sleep(delay)
+            else:
+                print("❌ Failed to synchronize time after multiple attempts.")
+                break
+        except Exception as e:
+            print(f"❌ General error: {e}")
+            if attempt < retries - 1:
+                print(f"🔄 Retrying... Attempt {attempt + 1}/{retries}")
+                await asyncio.sleep(delay)
+            else:
+                print("❌ Bot startup failed after multiple attempts.")
+                break
 
 if __name__ == "__main__":
     asyncio.run(start_bot())
