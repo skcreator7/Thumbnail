@@ -1,102 +1,61 @@
-import os
-import re
 import asyncio
-import threading
-from dotenv import load_dotenv
 from pyrogram import Client, filters
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-import ytthumb
-from fastapi import FastAPI
-import uvicorn
+from pyrogram.types import Message
+from dotenv import load_dotenv
+import os
+from ytthumb import download_thumbnail  # Import the YouTube thumbnail downloader
 
 # Load environment variables
 load_dotenv()
 
-# Get port from environment variable (important for Koyeb!)
-PORT = int(os.getenv("PORT", 8000))
+API_ID = os.getenv("API_ID")
+API_HASH = os.getenv("API_HASH")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-# Initialize bot
-app = Client(
-    "YouTube-Thumbnail-Downloader",
-    bot_token=os.environ.get("BOT_TOKEN"),
-    api_id=int(os.environ.get("API_ID")),
-    api_hash=os.environ.get("API_HASH")
-)
+# Initialize Pyrogram Client
+app = Client("GroupBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# FastAPI app for health check
-web_app = FastAPI()
+### ✅ Bot Start Message
+@app.on_message(filters.private & filters.command("start"))
+async def start(client: Client, message: Message):
+    await message.reply_text("🤖 Hello! I'm your group management bot. I can also download YouTube thumbnails!")
 
-@web_app.get("/")
-def home():
-    return {"status": "running"}
-
-# Start FastAPI in a separate thread
-def run_web_server():
-    uvicorn.run(web_app, host="0.0.0.0", port=PORT)
-
-# START Message & Buttons
-START_TEXT = """Hello {},
-I am a simple YouTube thumbnail downloader and group manager bot.
-
-- **Send a YouTube video link or ID**, and I'll send the thumbnail.
-- **Send a YouTube video link with quality** (e.g., `rokGy0huYEA | sd`):
-  - `sd` - Standard Quality
-  - `mq` - Medium Quality
-  - `hq` - High Quality
-  - `maxres` - Maximum Resolution
-"""
-
-START_BUTTONS = InlineKeyboardMarkup(
-    [
-        [InlineKeyboardButton("📢 Update Channel", url='https://t.me/SkFilmbox')],
-        [InlineKeyboardButton("☎️ Admin", url='https://t.me/Skadminrobot')]
-    ]
-)
-
-@app.on_message(filters.private & filters.command(["start", "help"]))
-async def start(_, message):
-    await message.reply_text(
-        text=START_TEXT.format(message.from_user.mention),
-        disable_web_page_preview=True,
-        reply_markup=START_BUTTONS,
-        quote=True
-    )
-
-@app.on_message(filters.private & filters.text)
-async def send_thumbnail(_, message):
-    msg = await message.reply_text("`Analyzing...`", quote=True)
-    try:
-        if " | " in message.text:
-            video, quality = message.text.split(" | ")
-        else:
-            video, quality = message.text, "sd"
-
-        thumbnail = ytthumb.thumbnail(video=video, quality=quality)
-        await message.reply_photo(photo=thumbnail, quote=True)
-        await msg.delete()
-    except Exception:
-        await msg.edit_text("❌ Invalid video ID or URL.")
-
-@app.on_message(filters.group)
-async def handle_group_message(client: Client, message: Message):
-    user = await client.get_chat_member(message.chat.id, message.from_user.id)
-    if user.status in ["administrator", "creator"]:
-        return  
-
-    if re.search(r"(https?:\/\/|@[A-Za-z0-9_]+)", message.text):
-        await message.reply_text("❌ Sending links or usernames is not allowed!")
+### ✅ YouTube Thumbnail Downloader
+@app.on_message(filters.command("thumb"))
+async def youtube_thumbnail(client: Client, message: Message):
+    if len(message.command) < 2:
+        await message.reply_text("❌ Please provide a valid YouTube video URL.")
         return
 
-async def start_bot():
-    threading.Thread(target=run_web_server, daemon=True).start()
+    video_url = message.command[1]
+    
+    # Download and send the thumbnail image
+    file_name = download_thumbnail(video_url)
+    if file_name:
+        await message.reply_photo(photo=file_name)
+    else:
+        await message.reply_text("❌ Unable to fetch the thumbnail. Please check the YouTube video URL.")
+
+### ✅ Auto-Delete Non-Admin Messages After 5 Minutes
+@app.on_message(filters.group & ~filters.service)
+async def auto_delete_messages(client: Client, message: Message):
+    from group_manager import is_admin  # Import admin check function
+
+    if await is_admin(client, message.chat.id, message.from_user.id):
+        return  # Don't delete admin messages
+
+    await asyncio.sleep(300)  # Wait for 5 minutes
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
+### ✅ Bot Startup
+async def main():
     print("🚀 Bot is starting...")
     await app.start()
     print("✅ Bot is running!")
-    await asyncio.Event().wait()
+    await idle()
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(start_bot())
-    except RuntimeError:
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(start_bot())
+    asyncio.run(main())
