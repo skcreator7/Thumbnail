@@ -3,8 +3,9 @@ from pyrogram import Client, filters
 from pyrogram.types import Message
 from dotenv import load_dotenv
 import os
-from ytthumb import download_thumbnail  # Import the YouTube thumbnail downloader
+from ytthumb import download_thumbnail
 import time
+from pyrogram.errors import BadMsgNotification
 
 # Load environment variables
 load_dotenv()
@@ -51,7 +52,7 @@ async def auto_delete_messages(client: Client, message: Message):
     except Exception:
         pass
 
-### ✅ Retry Logic for Bot Startup
+### ✅ Retry Logic for Bot Startup with Time Synchronization Check
 async def start_bot():
     retries = 5  # Number of retries before giving up
     delay = 5  # Seconds to wait between retries
@@ -63,13 +64,22 @@ async def start_bot():
             print("✅ Bot is running!")
             await idle()
             break  # Exit the loop if bot starts successfully
+        except BadMsgNotification as e:
+            print(f"Time synchronization error during startup: {e}")
+            if attempt < retries - 1:
+                print(f"Retrying... Attempt {attempt + 1}/{retries}")
+                await asyncio.sleep(delay)
+            else:
+                print("Failed to synchronize time after multiple attempts.")
+                break
         except Exception as e:
-            print(f"Error during startup: {e}")
+            print(f"General error during startup: {e}")
             if attempt < retries - 1:
                 print(f"Retrying... Attempt {attempt + 1}/{retries}")
                 await asyncio.sleep(delay)
             else:
                 print("Failed to start the bot after multiple attempts.")
+                break
 
 # Bot Startup
 async def main():
