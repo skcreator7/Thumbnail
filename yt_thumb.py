@@ -1,22 +1,27 @@
 import requests
+from urllib.parse import urlparse, parse_qs
 
-# Function to get the YouTube thumbnail from a video URL
-def get_youtube_thumbnail(url: str) -> str:
-    video_id = url.split("v=")[-1]  # Extract video ID from URL
-    return f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
-
-# Function to download the YouTube thumbnail
-def download_thumbnail(url: str) -> str:
-    thumbnail_url = get_youtube_thumbnail(url)
-    
-    # Send back the thumbnail URL or download and save it to a local file
-    response = requests.get(thumbnail_url)
-    
-    if response.status_code == 200:
-        # Save the image locally if needed or return the URL to send directly
-        file_name = "thumbnail.jpg"
-        with open(file_name, "wb") as file:
-            file.write(response.content)
-        return file_name
-    else:
+def download_thumbnail(video_url):
+    try:
+        # Extract video ID from the URL
+        parsed_url = urlparse(video_url)
+        video_id = parse_qs(parsed_url.query).get("v", [None])[0]
+        
+        if video_id:
+            # Build the thumbnail URL
+            thumbnail_url = f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+            
+            # Download the thumbnail
+            response = requests.get(thumbnail_url)
+            if response.status_code == 200:
+                file_name = f"{video_id}_thumbnail.jpg"
+                with open(file_name, 'wb') as file:
+                    file.write(response.content)
+                return file_name
+            else:
+                return None
+        else:
+            return None
+    except Exception as e:
+        print(f"Error downloading thumbnail: {e}")
         return None
